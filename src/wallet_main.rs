@@ -1,0 +1,3 @@
+mod wallet;
+
+fn main() {}
