@@ -1,3 +1,5 @@
+// wallet.rs
+
 use secp256k1::{PublicKey, SecretKey};
 use sha3::{Keccak256, Digest};
 
@@ -8,24 +10,18 @@ pub struct  Wallet {
 }
 
 impl Wallet {
-    // Wallet creation
     pub fn new() -> Wallet {
-        // Generate a random private key
         let (private_key, public_key) =
             secp256k1::generate_keypair(&mut secp256k1::rand::rng());
 
-        // Convert the public key to an uncompressed format of bytes
         let serialized_public_key = public_key.serialize_uncompressed();
 
-        // Hash the public key to get the address
         let mut hasher = Keccak256::new();
         hasher.update(&serialized_public_key[1..]);
         let keccak_result = hasher.finalize();
 
-        // Get the last 20 bytes of the hash as the address
         let address_bytes = &keccak_result[12..];
 
-        // Convert the address bytes to a string
         let address = format!("0x{}", hex::encode(address_bytes));
 
         Wallet { private_key, public_key, address }
@@ -46,14 +42,14 @@ impl Wallet {
     pub fn save_private_key_to_file(&self) -> Result<(), String> {
         let private_key = self.get_private_key();
 
-        std::fs::write("wallet.txt", private_key).map_err(|_| "Не удалось записать файл".to_string())
+        std::fs::write("wallet.txt", private_key).map_err(|_| "Could not write the file down".to_string())
     }
 
     fn read_private_key_from_file() -> Result<SecretKey, String> {
         let private_key = {
             match std::fs::read_to_string("wallet.txt") {
                 Ok(value) => { value },
-                Err(_) => { return Err("Не удалось прочитать файл".to_string()) }
+                Err(_) => { return Err("Could not read the file".to_string()) }
             }
         };
 
@@ -61,15 +57,15 @@ impl Wallet {
             Ok(key) => {
                 match key.try_into() {
                     Ok(value) => { value },
-                    Err(_) => { return Err("Длина приватного ключа должна быть 32 байта".to_string()) }
+                    Err(_) => { return Err("The length of the private key must be 32 bytes".to_string()) }
                 }
             },
-            Err(_) => { return Err("Не удалось перевести в 16-ную сс".to_string()) }
+            Err(_) => { return Err("Could not convert into hex".to_string()) }
         };
 
         match SecretKey::from_secret_bytes(private_key_decoded) {
             Ok(value) => { Ok(value) },
-            Err(_) => { Err("32 байта не представляют допустимый секретный ключ".to_string()) }
+            Err(_) => { Err("Invalid private key".to_string()) }
         }
     }
 
@@ -93,5 +89,13 @@ impl Wallet {
             public_key,
             address
         })
+    }
+
+    pub(crate) fn get_private_key_ref(&self) -> &SecretKey {
+        &self.private_key
+    }
+    
+    pub(crate) fn get_public_key_ref(&self) -> &PublicKey {
+        &self.public_key
     }
 }

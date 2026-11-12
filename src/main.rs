@@ -1,5 +1,9 @@
+// main.rs
+
 mod wallet;
+mod transaction;
 use wallet::Wallet;
+use transaction::Transaction;
 
 fn main () {
     let new_wallet: Wallet = Wallet::new();
@@ -11,7 +15,7 @@ fn main () {
     match new_wallet.save_private_key_to_file() {
         Ok(_) => {},
         Err(error) => {
-            println!("Ошибка: {}", error);
+            println!("Error: {}", error);
             return;
         }
     };
@@ -19,7 +23,7 @@ fn main () {
     let wallet_from_file = match Wallet::load_from_file() {
         Ok(wallet) => { wallet },
         Err(error) => {
-            println!("Ошибка: {}", error);
+            println!("Error: {}", error);
             return;
         }
     };
@@ -32,4 +36,28 @@ fn main () {
     assert_eq!(new_wallet_private_key, wallet_from_file_private_key);
     assert_eq!(new_wallet_public_key, wallet_from_file_public_key);
     assert_eq!(new_wallet_address, wallet_from_file_address);
+
+    let mut new_transaction = match Transaction::new(
+        wallet_from_file_address,
+        Wallet::new().get_address(),
+        128,
+        "happy birthday".to_string(),
+        123
+    ) {
+        Ok(transaction) => { transaction },
+        Err(error) => {
+            println!("Error: {}", error);
+            return;
+        }
+    };
+
+    match new_transaction.sign_transaction(&wallet_from_file) {
+        Ok(()) => { () },
+        Err(error) => {
+            println!("Error: {}", error);
+            return;
+        }
+    };
+
+    println!("{:?}", new_transaction);
 }
