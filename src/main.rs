@@ -2,6 +2,8 @@
 
 mod wallet;
 mod transaction;
+mod account_state;
+
 use wallet::Wallet;
 use transaction::Transaction;
 

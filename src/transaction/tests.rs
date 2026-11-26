@@ -2,6 +2,7 @@
 
 use super::Transaction;
 use crate::wallet::Wallet;
+use crate::account_state::AccountState;
 
 fn create_test_transaction() -> Result<Transaction, String> {
     let address1 = Wallet::new().get_address();
@@ -14,6 +15,17 @@ fn create_test_transaction() -> Result<Transaction, String> {
         "happy birthday".to_string(),
         123
     )
+}
+
+fn get_wallet() -> Wallet {
+    Wallet::new()
+}
+
+fn get_adress_and_account_state() -> (String, AccountState) {
+    let address = Wallet::new().get_address();
+    let account_state = AccountState::new();
+
+    (address, account_state)
 }
 
 #[test]
@@ -263,3 +275,94 @@ fn test_changed_data() {
 
     assert_ne!(new_transaction, new_transaction1);
 }
+
+#[test]
+fn unsigned_transaction_cannot_verify() {
+    let wallet1 = Wallet::new();
+    let wallet2 = Wallet::new();
+
+    let new_transaction1 = Transaction::new(
+        wallet1.get_address().clone(),
+        wallet2.get_address().clone(),
+        1,
+        "happy birthday".to_string(),
+        0
+    ).unwrap();
+
+    assert!(new_transaction1.verify_transaction(wallet1.get_public_key_ref()).is_err());
+}
+
+#[test]
+fn test_resigned_signature() {
+    let wallet1 = Wallet::new();
+    let wallet2 = Wallet::new();
+
+    let mut new_transaction1 = Transaction::new(
+        wallet1.get_address().clone(),
+        wallet2.get_address().clone(),
+        1,
+        "happy birthday".to_string(),
+        0
+    ).unwrap();
+
+    new_transaction1.sign_transaction(&wallet1).unwrap();
+
+    let signature = new_transaction1.signature.clone();
+
+    new_transaction1.sign_transaction(&wallet1).unwrap();
+
+    assert_eq!(signature, new_transaction1.signature);
+}
+
+#[test]
+fn test_resigned_signature_with_changes() {
+    let wallet1 = Wallet::new();
+    let wallet2 = Wallet::new();
+
+    let mut new_transaction1 = Transaction::new(
+        wallet1.get_address().clone(),
+        wallet2.get_address().clone(),
+        1,
+        "happy birthday".to_string(),
+        0
+    ).unwrap();
+
+    new_transaction1.sign_transaction(&wallet1).unwrap();
+
+    let signature = new_transaction1.signature.clone();
+
+    new_transaction1.amount = 2;
+    new_transaction1.sign_transaction(&wallet1).unwrap();
+
+    assert_ne!(signature, new_transaction1.signature);
+}
+
+#[test]
+fn test_changed_transaction_data() {
+    let (_, mut account_state) = get_adress_and_account_state();
+    let wallet1 = get_wallet();
+    let public_key = wallet1.get_public_key_ref();
+    let wallet2 = get_wallet();
+    let address2 = wallet2.get_address();
+
+    account_state.update_balance(&wallet1.get_address(), 100);
+
+    let mut transaction = Transaction::new(
+        wallet1.get_address().clone(),
+        address2.clone(),
+        99,
+        "happy birthday".to_string(),
+        0
+    ).unwrap();
+
+    assert!(transaction.sign_transaction(&wallet1).is_ok());
+
+    transaction.amount = 5;
+
+    assert!(account_state.apply_transaction(&transaction, public_key).is_err());
+
+    assert_eq!(account_state.get_balance(&address2), 0);
+    assert_eq!(account_state.get_balance(&wallet1.get_address()), 100);
+    assert_eq!(account_state.get_next_nonce(&wallet1.get_address()), Ok(0));
+}
+
